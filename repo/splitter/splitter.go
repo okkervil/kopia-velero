@@ -14,6 +14,7 @@ const (
 	splitterSize2MB           = 2 << 20
 	splitterSize4MB           = 4 << 20
 	splitterSize8MB           = 8 << 20
+	splitterSize120MB         = 120 << 20
 )
 
 // Splitter determines when to split a given object.
@@ -55,6 +56,7 @@ var splitterFactories = map[string]Factory{
 	"FIXED-2M":   Fixed(splitterSize2MB),
 	"FIXED-4M":   Fixed(splitterSize4MB),
 	"FIXED-8M":   Fixed(splitterSize8MB),
+	"FIXED-120M": Fixed(splitterSize120MB),
 
 	"DYNAMIC-128K-BUZHASH": newBuzHash32SplitterFactory(splitterSize128KB),
 	"DYNAMIC-256K-BUZHASH": newBuzHash32SplitterFactory(splitterSize256KB),
