@@ -203,7 +203,7 @@ func (sm *SharedManager) attemptReadPackFileLocalIndex(ctx context.Context, pack
 func (sm *SharedManager) loadPackIndexesLocked(ctx context.Context) error {
 	nextSleepTime := 100 * time.Millisecond //nolint:gomnd
 
-	for i := 0; i < indexLoadAttempts; i++ {
+	for i := range indexLoadAttempts {
 		ibm, err0 := sm.indexBlobManager(ctx)
 		if err0 != nil {
 			return err0
@@ -287,25 +287,25 @@ func (sm *SharedManager) decryptContentAndVerify(payload gather.Bytes, bi Info, 
 
 	var hashBuf [hashing.MaxHashSize]byte
 
-	iv := getPackedContentIV(hashBuf[:0], bi.GetContentID())
+	iv := getPackedContentIV(hashBuf[:0], bi.ContentID)
 
 	// reserved for future use
-	if k := bi.GetEncryptionKeyID(); k != 0 {
+	if k := bi.EncryptionKeyID; k != 0 {
 		return errors.Errorf("unsupported encryption key ID: %v", k)
 	}
 
-	h := bi.GetCompressionHeaderID()
+	h := bi.CompressionHeaderID
 	if h == 0 {
 		return errors.Wrapf(
 			sm.decryptAndVerify(payload, iv, output),
-			"invalid checksum at %v offset %v length %v/%v", bi.GetPackBlobID(), bi.GetPackOffset(), bi.GetPackedLength(), payload.Length())
+			"invalid checksum at %v offset %v length %v/%v", bi.PackBlobID, bi.PackOffset, bi.PackedLength, payload.Length())
 	}
 
 	var tmp gather.WriteBuffer
 	defer tmp.Close()
 
 	if err := sm.decryptAndVerify(payload, iv, &tmp); err != nil {
-		return errors.Wrapf(err, "invalid checksum at %v offset %v length %v/%v", bi.GetPackBlobID(), bi.GetPackOffset(), bi.GetPackedLength(), payload.Length())
+		return errors.Wrapf(err, "invalid checksum at %v offset %v length %v/%v", bi.PackBlobID, bi.PackOffset, bi.PackedLength, payload.Length())
 	}
 
 	c := compression.ByHeaderID[h]
@@ -443,7 +443,7 @@ func indexBlobCacheSweepSettings(caching *CachingOptions) cache.SweepSettings {
 	}
 }
 
-func (sm *SharedManager) setupCachesAndIndexManagers(ctx context.Context, caching *CachingOptions, mr *metrics.Registry) error {
+func (sm *SharedManager) setupCachesAndIndexManagers(ctx context.Context, caching *CachingOptions, mr *metrics.Registry, allowWriteOnIndexLoad bool) error {
 	dataCache, err := cache.NewContentCache(ctx, sm.st, cache.Options{
 		BaseCacheDirectory: caching.CacheDirectory,
 		CacheSubDir:        "contents",
@@ -514,7 +514,8 @@ func (sm *SharedManager) setupCachesAndIndexManagers(ctx context.Context, cachin
 				return errors.Wrap(sm.indexBlobManagerV1.CompactEpoch(ctx, blobIDs, outputPrefix), "CompactEpoch")
 			},
 			sm.namedLogger("epoch-manager"),
-			sm.timeNow),
+			sm.timeNow,
+			allowWriteOnIndexLoad),
 		sm.timeNow,
 		sm.format,
 		sm.namedLogger("index-blob-manager"),
@@ -636,7 +637,7 @@ func NewSharedManager(ctx context.Context, st blob.Storage, prov format.Provider
 
 	caching = caching.CloneOrDefault()
 
-	if err := sm.setupCachesAndIndexManagers(ctx, caching, mr); err != nil {
+	if err := sm.setupCachesAndIndexManagers(ctx, caching, mr, opts.AllowWriteOnIndexLoad); err != nil {
 		return nil, errors.Wrap(err, "error setting up read manager caches")
 	}
 

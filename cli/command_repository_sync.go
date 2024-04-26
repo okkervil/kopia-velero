@@ -54,7 +54,6 @@ func (c *commandRepositorySyncTo) setup(svc advancedAppServices, parent commandP
 		cc := cmd.Command(prov.Name, "Synchronize repository data to another repository in "+prov.Description)
 		f.Setup(svc, cc)
 		cc.Action(func(kpc *kingpin.ParseContext) error {
-			//nolint:wrapcheck
 			return svc.runAppWithContext(kpc.SelectedCommand, func(ctx context.Context) error {
 				st, err := f.Connect(ctx, false, 0)
 				if err != nil {
@@ -230,9 +229,7 @@ func (c *commandRepositorySyncTo) runSyncBlobs(ctx context.Context, src blob.Rea
 
 	tt := timetrack.Start()
 
-	for i := 0; i < c.repositorySyncParallelism; i++ {
-		workerID := i
-
+	for workerID := range c.repositorySyncParallelism {
 		eg.Go(func() error {
 			for m := range copyCh {
 				log(ctx).Debugf("[%v] Copying %v (%v bytes)...\n", workerID, m.BlobID, m.Length)

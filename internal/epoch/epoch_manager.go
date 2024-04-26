@@ -687,7 +687,6 @@ func (e *Manager) loadUncompactedEpochs(ctx context.Context, min, max int) (map[
 	eg, ctx := errgroup.WithContext(ctx)
 
 	for n := min; n <= max; n++ {
-		n := n
 		if n < 0 {
 			continue
 		}
@@ -995,8 +994,7 @@ func (e *Manager) getCompleteIndexSetForCommittedState(ctx context.Context, cs C
 
 	tmp := make([][]blob.Metadata, cnt)
 
-	for i := 0; i < cnt; i++ {
-		i := i
+	for i := range cnt {
 		ep := i + startEpoch
 
 		eg.Go(func() error {
@@ -1130,26 +1128,25 @@ func rangeCheckpointBlobPrefix(epoch1, epoch2 int) blob.ID {
 	return blob.ID(fmt.Sprintf("%v%v_%v_", RangeCheckpointIndexBlobPrefix, epoch1, epoch2))
 }
 
-func allowWritesOnIndexLoad() bool {
-	v := strings.ToLower(os.Getenv("KOPIA_ALLOW_WRITE_ON_INDEX_LOAD"))
-
-	if v == "" {
-		// temporary default to be changed once index cleanup is performed on maintenance
+func allowWritesOnIndexLoad(fromParam bool) bool {
+	if fromParam {
 		return true
 	}
+
+	v := strings.ToLower(os.Getenv("KOPIA_ALLOW_WRITE_ON_INDEX_LOAD"))
 
 	return v == "true" || v == "1"
 }
 
 // NewManager creates new epoch manager.
-func NewManager(st blob.Storage, paramProvider ParametersProvider, compactor CompactionFunc, log logging.Logger, timeNow func() time.Time) *Manager {
+func NewManager(st blob.Storage, paramProvider ParametersProvider, compactor CompactionFunc, log logging.Logger, timeNow func() time.Time, optAllowWriteOnIndexLoad bool) *Manager {
 	return &Manager{
 		st:                            st,
 		log:                           log,
 		compact:                       compactor,
 		timeFunc:                      timeNow,
 		paramProvider:                 paramProvider,
-		allowCleanupWritesOnIndexLoad: allowWritesOnIndexLoad(),
+		allowCleanupWritesOnIndexLoad: allowWritesOnIndexLoad(optAllowWriteOnIndexLoad),
 		getCompleteIndexSetTooSlow:    new(int32),
 		committedStateRefreshTooSlow:  new(int32),
 		writeIndexTooSlow:             new(int32),
